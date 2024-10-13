@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Modeling Tool</title>
+    <title>3D Modeling HTML</title>
     <style>
         body, html {
             margin: 0;
@@ -80,19 +80,23 @@
 <button id="toggle-menu-btn" onclick="toggleMenu()">Menu</button>
 
 <!-- Transparent menu container -->
-<div id="menu-container">
+<div id="menu-container" onclick="event.stopPropagation();">
     <div class="menu" id="object-menu">
         <h3>Objects</h3>
         <button onclick="addCube()">Add Cube</button>
         <button onclick="addSphere()">Add Sphere</button>
         <button onclick="addTorus()">Add Torus</button>
+        <button onclick="addCone()">Add Cone</button> <!-- Add Cone button -->
+        <button onclick="addCylinder()">Add Cylinder</button> <!-- Add Cylinder button -->
+        <button onclick="addTorusKnot()">Add Torus Knot</button> <!-- Add Torus Knot button -->
     </div>
 
     <div class="menu" id="edit-menu">
         <h3>Editing Tools</h3>
-        <button onclick="toggleMoveMode()">Move</button>
-        <button onclick="toggleScaleMode()">Scale</button>
-        <button onclick="toggleRotateMode()">Rotate</button>
+        <button onclick="toggleMoveMode()">Move (M)</button>
+        <button onclick="toggleScaleMode()">Scale (S)</button>
+        <button onclick="toggleRotateMode()">Rotate (R)</button>
+        <button onclick="duplicateSelectedObject()">Duplicate (D)</button> <!-- Duplicate button -->
         <button onclick="toggleRealisticShaders()">Toggle Realistic Shaders</button>
         <label for="colorPicker">Color:</label>
         <input type="color" id="colorPicker" onchange="changeColor(this.value)">
@@ -110,7 +114,6 @@
         <h3>Light Controls</h3>
         <label for="lightIntensity">Light Intensity</label>
         <input type="range" id="lightIntensity" min="0" max="2" step="0.1" value="1" oninput="changeLightIntensity(this.value)">
-
         <label for="lightDirection">Light Direction</label>
         <input type="range" id="lightDirection" min="0" max="360" step="1" value="0" oninput="changeLightDirection(this.value)">
     </div>
@@ -142,11 +145,12 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0x000000); // Default background color (void color)
     renderer.shadowMap.enabled = true; // Enable shadow maps
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Use soft shadows
     document.getElementById('canvas-container').appendChild(renderer.domElement);
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
+    controls.dampingFactor = 0.10;
 
     const transformControls = new THREE.TransformControls(camera, renderer.domElement);
     transformControls.addEventListener('dragging-changed', event => {
@@ -156,9 +160,14 @@
 
     let selectedObject = null;
 
+    // Directional Light with shadow properties
     const light = new THREE.DirectionalLight(0xffffff, 1);
     light.position.set(1, 1, 0);
-    light.castShadow = true; // Enable shadow for the light
+    light.castShadow = true; // Enable shadow casting for the light
+    light.shadow.mapSize.width = 1024; // Default shadow map size
+    light.shadow.mapSize.height = 1024;
+    light.shadow.camera.near = 0.5; // Default shadow camera near
+    light.shadow.camera.far = 50; // Default shadow camera far
     scene.add(light);
 
     function addObjectToScene(object) {
@@ -171,6 +180,7 @@
         const material = new THREE.MeshStandardMaterial({ color: 0x00ff00, metalness: 0.5, roughness: 0.5 });
         const cube = new THREE.Mesh(geometry, material);
         cube.castShadow = true; // Enable shadow casting for the cube
+        cube.receiveShadow = true; // Enable shadow receiving for the cube
         setupObjectInteraction(cube);
         addObjectToScene(cube);
     }
@@ -180,49 +190,86 @@
         const material = new THREE.MeshStandardMaterial({ color: 0xff0000, metalness: 0.5, roughness: 0.5 });
         const sphere = new THREE.Mesh(geometry, material);
         sphere.castShadow = true; // Enable shadow casting for the sphere
+        sphere.receiveShadow = true; // Enable shadow receiving for the sphere
         setupObjectInteraction(sphere);
         addObjectToScene(sphere);
     }
 
     function addTorus() {
-        const geometry = new THREE.TorusGeometry(1, 0.3, 16, 100);
-        const material = new THREE.MeshStandardMaterial({ color: 0x0000ff, metalness: 0.5, roughness: 0.5 });
+        const geometry = new THREE.TorusGeometry(0.5, 0.2, 16, 100);
+        const material = new THREE.MeshStandardMaterial({ color: 0xffff00, metalness: 0.5, roughness: 0.5 });
         const torus = new THREE.Mesh(geometry, material);
         torus.castShadow = true; // Enable shadow casting for the torus
+        torus.receiveShadow = true; // Enable shadow receiving for the torus
         setupObjectInteraction(torus);
         addObjectToScene(torus);
     }
 
-    function setupObjectInteraction(object) {
-        object.userData.outline = new THREE.Mesh(
-            object.geometry.clone(),
-            new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.BackSide })
-        );
-        object.userData.outline.scale.multiplyScalar(1.05);
-        object.add(object.userData.outline);
-        object.userData.outline.visible = false;
+    function addCone() {
+        const geometry = new THREE.ConeGeometry(0.5, 1, 32);
+        const material = new THREE.MeshStandardMaterial({ color: 0x0000ff, metalness: 0.5, roughness: 0.5 });
+        const cone = new THREE.Mesh(geometry, material);
+        cone.castShadow = true; // Enable shadow casting for the cone
+        cone.receiveShadow = true; // Enable shadow receiving for the cone
+        setupObjectInteraction(cone);
+        addObjectToScene(cone);
+    }
 
-        object.onClick = () => selectObject(object);
+    function addCylinder() {
+        const geometry = new THREE.CylinderGeometry(0.75, 0.75, 1.5, 32);
+        const material = new THREE.MeshStandardMaterial({ color: 0xff00ff, metalness: 0.5, roughness: 0.5 });
+        const cylinder = new THREE.Mesh(geometry, material);
+        cylinder.castShadow = true; // Enable shadow casting for the cylinder
+        cylinder.receiveShadow = true; // Enable shadow receiving for the cylinder
+        setupObjectInteraction(cylinder);
+        addObjectToScene(cylinder);
+    }
+
+    function addTorusKnot() {
+        const geometry = new THREE.TorusKnotGeometry(0.5, 0.2, 100, 16);
+        const material = new THREE.MeshStandardMaterial({ color: 0x00ffff, metalness: 0.5, roughness: 0.5 });
+        const torusKnot = new THREE.Mesh(geometry, material);
+        torusKnot.castShadow = true; // Enable shadow casting for the torus knot
+        torusKnot.receiveShadow = true; // Enable shadow receiving for the torus knot
+        setupObjectInteraction(torusKnot);
+        addObjectToScene(torusKnot);
+    }
+
+    function setupObjectInteraction(object) {
+        object.name = object.type; // Set object name for the scene list
+        object.userData.isSelected = false; // Track selection status
     }
 
     function selectObject(object) {
         if (selectedObject) {
-            selectedObject.userData.outline.visible = false;
+            deselectObject();
         }
         selectedObject = object;
-        object.userData.outline.visible = true;
+        object.userData.isSelected = true; // Mark as selected
         transformControls.attach(object);
+        updateSceneList();
+        object.material.emissive.set(0xffff00); // Yellow outline effect
+    }
+
+    function deselectObject() {
+        if (selectedObject) {
+            selectedObject.userData.isSelected = false; // Mark as deselected
+            transformControls.detach();
+            selectedObject.material.emissive.set(0x000000); // Remove outline effect
+            selectedObject = null;
+            updateSceneList();
+        }
     }
 
     function updateSceneList() {
         const sceneList = document.getElementById('scene-list');
         sceneList.innerHTML = '';
-        scene.children.forEach((object, index) => {
-            if (object.isMesh) {
-                const li = document.createElement('li');
-                li.textContent = `Object ${index + 1}`;
-                li.onclick = () => selectObject(object);
-                sceneList.appendChild(li);
+        scene.children.forEach(child => {
+            if (child instanceof THREE.Mesh) {
+                const listItem = document.createElement('li');
+                listItem.textContent = child.name || 'Unnamed';
+                listItem.onclick = () => selectObject(child);
+                sceneList.appendChild(listItem);
             }
         });
     }
@@ -239,11 +286,29 @@
         transformControls.setMode('rotate');
     }
 
-    function toggleRealisticShaders() {
+    function duplicateSelectedObject() {
         if (selectedObject) {
-            const material = selectedObject.material;
-            material.metalness = material.metalness === 0 ? 0.5 : 0;
-            material.roughness = material.roughness === 0 ? 0.5 : 0;
+            // Clone the selected object
+            const newObject = selectedObject.clone();
+            newObject.position.x += 1; // Move the duplicate to the right
+
+            // Ensure that the new object is a separate mesh
+            newObject.userData.isSelected = false; // Mark as not selected
+            newObject.name = selectedObject.name; // Maintain the name for clarity
+
+            // Add the new object to the scene
+            scene.add(newObject);
+            
+            updateSceneList(); // Update the scene list to include the new object
+            deselectObject(); // Deselect the original object
+        }
+    }
+
+    function toggleRealisticShaders() {
+        const material = selectedObject.material;
+        if (material) {
+            material.metalness = material.metalness === 0 ? 1 : 0;
+            material.roughness = material.roughness === 0 ? 0 : 0.5;
             material.needsUpdate = true;
         }
     }
@@ -282,10 +347,64 @@
         renderer.setClearColor(color); // Change the background (void) color
     }
 
+    function deleteSelectedObject() {
+        if (selectedObject) {
+            scene.remove(selectedObject);
+            selectedObject = null;
+            transformControls.detach();
+            updateSceneList(); // Update the scene list to reflect the deletion
+        }
+    }
+
+    // Listen for the 'keydown' event to delete the selected object with Backspace
+    window.addEventListener('keydown', (event) => {
+        if (event.key === 'Backspace' && selectedObject) {
+            deleteSelectedObject();
+        }
+        if (event.key === 'm') { // Move tool shortcut
+            toggleMoveMode();
+        }
+        if (event.key === 's') { // Scale tool shortcut
+            toggleScaleMode();
+        }
+        if (event.key === 'r') { // Rotate tool shortcut
+            toggleRotateMode();
+        }
+        if (event.key === 'd') { // Duplicate tool shortcut
+            duplicateSelectedObject();
+        }
+    });
+
+    // Add raycaster for click selection
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    function onMouseClick(event) {
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(scene.children);
+
+        if (intersects.length > 0) {
+            const clickedObject = intersects[0].object;
+            selectObject(clickedObject);
+        } else {
+            deselectObject(); // Deselect if clicking outside of an object
+        }
+    }
+
+    window.addEventListener('click', onMouseClick);
+
     function toggleMenu() {
         const menu = document.getElementById('menu-container');
         menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
     }
+
+    // Prevent deselecting when clicking inside the menu
+    document.getElementById('menu-container').addEventListener('click', (event) => {
+        event.stopPropagation(); // Stop the click event from bubbling up
+    });
 
     function animate() {
         requestAnimationFrame(animate);
